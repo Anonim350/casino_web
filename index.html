@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Казино</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a0000 50%, #0a0a0a 100%);
+            color: #fff; min-height: 100vh; padding: 16px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            padding: 20px; width: 100%; max-width: 400px; margin-bottom: 12px;
+        }
+        h1 { font-size: 22px; text-align: center; margin-bottom: 8px; color: #ff4444; }
+        .balance { text-align: center; font-size: 28px; font-weight: bold; color: #fff; margin: 8px 0; }
+        .sub { text-align: center; font-size: 12px; color: #888; }
+        .game-btn {
+            display: block; width: 100%; padding: 14px;
+            margin: 8px 0; border: none; border-radius: 14px;
+            background: rgba(255, 68, 68, 0.15);
+            backdrop-filter: blur(10px);
+            color: #fff; font-size: 16px; font-weight: 600;
+            border: 1px solid rgba(255, 68, 68, 0.3);
+            cursor: pointer; transition: all 0.2s;
+        }
+        .game-btn:active { background: rgba(255, 68, 68, 0.35); transform: scale(0.98); }
+        .result { text-align: center; font-size: 18px; margin: 16px 0; min-height: 30px; }
+        .back-btn { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15); }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="glass" id="mainMenu">
+        <h1>🔥 КАЗИНО</h1>
+        <div class="sub">Виртуальные деньги. Без вывода.</div>
+        <div class="balance" id="balanceDisplay">Баланс: —</div>
+        <button class="game-btn" onclick="play('rocket')">🚀 Ракета</button>
+        <button class="game-btn" onclick="play('mines3')">💣 Мины (3)</button>
+        <button class="game-btn" onclick="play('mines6')">💣 Мины (6)</button>
+        <button class="game-btn" onclick="play('mines12')">💣 Мины (12)</button>
+        <button class="game-btn" onclick="play('pickaxe')">⛏️ Кирка</button>
+        <button class="game-btn" onclick="play('777')">🔞 777</button>
+        <button class="game-btn back-btn" onclick="closeApp()">🔙 Закрыть</button>
+    </div>
+
+    <div class="glass hidden" id="resultScreen">
+        <div class="result" id="resultText"></div>
+        <button class="game-btn" onclick="backToMenu()">🔙 Назад</button>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+
+        // Показываем имя пользователя (если доступно)
+        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            const name = tg.initDataUnsafe.user.first_name || 'Игрок';
+            document.querySelector('.sub').textContent = `Привет, ${name}!`;
+        }
+
+        function play(game) {
+            let result = {};
+            let text = '';
+
+            if (game === 'rocket') {
+                const win = Math.random() < 0.45;
+                result = { game: 'rocket', win: win };
+                text = win ? '🚀 УСПЕХ! +30 ₽' : '💥 КРАШ! -15 ₽';
+            } else if (game.startsWith('mines')) {
+                const mines = parseInt(game.replace('mines', ''));
+                const loseChance = {3: 0.12, 6: 0.24, 9: 0.36, 12: 0.48}[mines];
+                const win = Math.random() >= loseChance;
+                const mult = {3: 2, 6: 3, 9: 4, 12: 5}[mines];
+                result = { game: 'mines', mines: mines, win: win };
+                text = win ? `💣 Чисто! +${15*mult} ₽` : '💥 Мина! -15 ₽';
+            } else if (game === 'pickaxe') {
+                const roll = Math.random() * 100;
+                let reward = 0, name = 'Земля';
+                if (roll < 40) { name = '🌍 Земля'; reward = 0; }
+                else if (roll < 65) { name = '🪨 Камень'; reward = 0; }
+                else if (roll < 80) { name = '⚫ Уголь'; reward = 20; }
+                else if (roll < 90) { name = '🔩 Железо'; reward = 30; }
+                else if (roll < 97) { name = '🟡 Золото'; reward = 50; }
+                else { name = '💎 Алмаз'; reward = 100; }
+                result = { game: 'pickaxe', reward: reward };
+                text = `⛏️ ${name}: ${reward > 0 ? '+' + reward + ' ₽' : 'пусто'}`;
+            } else if (game === '777') {
+                const a = Math.floor(Math.random()*7)+1, b = Math.floor(Math.random()*7)+1, c = Math.floor(Math.random()*7)+1;
+                let reward = 0;
+                if (a===b && b===c) reward = 150;
+                else if (a===b || b===c || a===c) reward = 30;
+                result = { game: '777', reward: reward };
+                text = `🎰 ${a} | ${b} | ${c}: ${reward > 0 ? '+' + reward + ' ₽' : 'мимо'}`;
+            }
+
+            document.getElementById('mainMenu').classList.add('hidden');
+            document.getElementById('resultScreen').classList.remove('hidden');
+            document.getElementById('resultText').textContent = text;
+
+            // Отправляем результат боту (одноразово)
+            tg.sendData(JSON.stringify(result));
+        }
+
+        function backToMenu() {
+            document.getElementById('resultScreen').classList.add('hidden');
+            document.getElementById('mainMenu').classList.remove('hidden');
+        }
+
+        function closeApp() {
+            tg.close();
+        }
+    </script>
+</body>
+</html>
